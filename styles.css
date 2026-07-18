@@ -1,0 +1,374 @@
+/**
+ * The CRT.
+ *
+ * Green-on-black is the most tired palette in software, and it is used here
+ * without apology because it is not a mood -- it is the subject. This is a
+ * phosphor terminal, so it gets the actual behaviour of one, and the difference
+ * between a convincing CRT and a green <div> is entirely in the details nobody
+ * bothers with:
+ *
+ * - **Bloom, not glow.** Phosphor scatters. The text throws light onto the glass
+ *   around it, tinted like the emitter, at three radii -- not one uniform halo.
+ * - **The screen is not black.** A powered CRT leaks. The darkest pixel here is
+ *   a very dark green, because a true #000 background reads as an LCD.
+ * - **Scanlines belong to the glass.** They sit above the text at a fixed pitch
+ *   and do not scroll with it. Scanlines that move with content are a texture,
+ *   not a display.
+ * - **Curvature is faked with light.** A vignette that darkens the corners and a
+ *   diagonal glare across the top-left do more for the illusion of a bulging
+ *   tube than any transform can.
+ *
+ * P1 phosphor is the green (~#33FF33 at full excitation, tuned here toward
+ * legibility). Amber is P3, which real terminals shipped as the easier-on-the-
+ * eyes option -- so it is a command, not a theme picker.
+ */
+
+@import url("https://fonts.googleapis.com/css2?family=VT323&display=swap");
+
+:root {
+  /* Phosphor, swapped by [data-phosphor] below. */
+  --p: #4dfd7f;
+  --p-dim: #2aa04f;
+  --p-hot: #c9ffd9;
+  --p-glow: rgba(77, 253, 127, 0.55);
+
+  --screen: #050a06;
+  --screen-lit: #0a140c;
+  --bezel: #16171a;
+  --bezel-edge: #2c2e33;
+  --room: #08090b;
+
+  --mono: "VT323", "Courier New", ui-monospace, monospace;
+}
+
+[data-phosphor="amber"] {
+  --p: #ffb642;
+  --p-dim: #a06a1c;
+  --p-hot: #ffe6bd;
+  --p-glow: rgba(255, 182, 66, 0.5);
+  --screen: #0a0703;
+  --screen-lit: #150e05;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--room);
+  /* The room the monitor sits in: one soft light source, above and behind. */
+  background-image: radial-gradient(
+    ellipse 80% 60% at 50% 0%,
+    #14161b 0%,
+    var(--room) 70%
+  );
+  color: var(--p);
+  font-family: var(--mono);
+  -webkit-font-smoothing: antialiased;
+}
+
+.room {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: clamp(8px, 3vw, 40px);
+}
+
+/* ---------- the monitor ---------- */
+
+.crt {
+  width: min(1000px, 100%);
+  height: min(720px, 100%);
+  display: flex;
+  flex-direction: column;
+  padding: clamp(10px, 1.6vw, 20px);
+  background: linear-gradient(180deg, #202227 0%, var(--bezel) 40%, #0e0f11 100%);
+  border: 1px solid var(--bezel-edge);
+  border-radius: 18px;
+  box-shadow:
+    /* the tube's own light spilling onto the bezel */
+    inset 0 0 60px rgba(0, 0, 0, 0.9),
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 30px 80px rgba(0, 0, 0, 0.7),
+    0 0 120px -20px var(--p-glow);
+  cursor: text;
+}
+
+.crt__screen {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  background:
+    radial-gradient(ellipse 100% 100% at 50% 45%, var(--screen-lit) 0%, var(--screen) 100%);
+  box-shadow:
+    inset 0 0 100px rgba(0, 0, 0, 0.9),
+    inset 0 0 12px rgba(0, 0, 0, 0.8);
+}
+
+.crt__scroll {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  padding: clamp(12px, 2vw, 26px);
+  font-size: clamp(15px, 1.35vw, 19px);
+  line-height: 1.32;
+  scrollbar-width: thin;
+  scrollbar-color: var(--p-dim) transparent;
+}
+
+.crt__scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.crt__scroll::-webkit-scrollbar-thumb {
+  background: var(--p-dim);
+}
+
+/* Scanlines live on the glass: fixed pitch, above the text, never scrolling. */
+.crt__scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.28) 3px,
+    rgba(0, 0, 0, 0.28) 4px
+  );
+  mix-blend-mode: multiply;
+  animation: flicker 5.2s infinite steps(1);
+}
+
+/* Corners fall off, because the tube bulges. */
+.crt__vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 78% 78% at 50% 50%,
+    transparent 55%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+}
+
+/* One diagonal reflection. Cheap, and it sells the curvature more than anything. */
+.crt__glare {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    118deg,
+    rgba(255, 255, 255, 0.055) 0%,
+    rgba(255, 255, 255, 0.018) 22%,
+    transparent 45%
+  );
+}
+
+@keyframes flicker {
+  0%,
+  96%,
+  100% {
+    opacity: 1;
+  }
+  97% {
+    opacity: 0.86;
+  }
+  98% {
+    opacity: 1;
+  }
+  98.5% {
+    opacity: 0.92;
+  }
+}
+
+/* ---------- text ---------- */
+
+.line {
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--p);
+  /* Three radii: the tight core, the near scatter, the room glow. */
+  text-shadow:
+    0 0 1px var(--p-hot),
+    0 0 6px var(--p-glow),
+    0 0 22px var(--p-glow);
+}
+
+.line[data-kind="dim"] {
+  color: var(--p-dim);
+  text-shadow: 0 0 5px rgba(0, 0, 0, 0);
+}
+
+.line[data-kind="system"] {
+  color: var(--p-hot);
+  text-shadow:
+    0 0 2px var(--p-hot),
+    0 0 10px var(--p-glow),
+    0 0 30px var(--p-glow);
+}
+
+.line[data-kind="user"] {
+  color: var(--p-hot);
+  opacity: 0.95;
+}
+
+.line[data-kind="error"] {
+  color: #ff5f56;
+  text-shadow:
+    0 0 2px #ffb3ae,
+    0 0 12px rgba(255, 95, 86, 0.5);
+}
+
+.line[data-kind="prophecy"] {
+  color: var(--p-hot);
+  text-shadow:
+    0 0 2px var(--p-hot),
+    0 0 14px var(--p-glow),
+    0 0 40px var(--p-glow);
+}
+
+.line__cursor {
+  animation: blink 1s steps(1) infinite;
+}
+
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ---------- prompt ---------- */
+
+.prompt {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6ch;
+  margin-top: 0.2em;
+}
+
+.prompt__sigil {
+  color: var(--p-hot);
+  text-shadow: 0 0 8px var(--p-glow);
+}
+
+.prompt[data-busy] .prompt__sigil {
+  animation: blink 0.6s steps(1) infinite;
+}
+
+.prompt__input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  color: var(--p-hot);
+  background: none;
+  border: 0;
+  padding: 0;
+  outline: none;
+  caret-color: var(--p);
+  text-shadow:
+    0 0 1px var(--p-hot),
+    0 0 8px var(--p-glow);
+}
+
+.prompt__input::placeholder {
+  color: var(--p-dim);
+  opacity: 0.65;
+}
+
+.prompt__input:disabled {
+  opacity: 0.4;
+}
+
+/* ---------- bezel ---------- */
+
+.crt__bezel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 6px 0;
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  color: #4a4d55;
+  user-select: none;
+}
+
+.crt__brand {
+  text-transform: uppercase;
+}
+
+.crt__knob {
+  font: inherit;
+  letter-spacing: 0.16em;
+  color: #4a4d55;
+  background: #0d0e10;
+  border: 1px solid #303237;
+  border-radius: 3px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.crt__knob:hover {
+  color: var(--p);
+  border-color: var(--p-dim);
+}
+
+.crt__knob[aria-pressed="true"] {
+  color: var(--p);
+  border-color: var(--p-dim);
+  box-shadow: 0 0 12px -2px var(--p-glow);
+}
+
+/* ---------- accessibility ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .crt__scanlines,
+  .line__cursor,
+  .prompt[data-busy] .prompt__sigil {
+    animation: none;
+  }
+}
+
+/* Scanlines and heavy bloom are exactly what a high-contrast reader is asking
+   the browser to remove, so remove them. */
+@media (prefers-contrast: more) {
+  .crt__scanlines,
+  .crt__vignette,
+  .crt__glare {
+    display: none;
+  }
+
+  .line,
+  .line[data-kind="system"],
+  .line[data-kind="prophecy"],
+  .prompt__input {
+    text-shadow: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .crt {
+    border-radius: 10px;
+    padding: 8px;
+  }
+
+  .crt__bezel {
+    font-size: 10px;
+  }
+}
